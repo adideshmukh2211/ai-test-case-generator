@@ -11,7 +11,7 @@
     <div class="container mx-auto px-4 py-8">
         <header class="text-center mb-12">
             <h1 class="text-4xl font-bold text-indigo-600 mb-2">AI Test Case Generator</h1>
-            <p class="text-gray-600">Generate Robot Framework test cases with natural language prompts</p>
+            <p class="text-gray-600">Generate test cases with natural language prompts</p>
         </header>
 
         <div class="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-6">
@@ -19,15 +19,37 @@
                 <label for="prompt" class="block text-gray-700 text-sm font-bold mb-2">What would you like to test?</label>
                 <textarea id="prompt" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" rows="4" placeholder="Example: Generate test cases for email validation on the login page"></textarea>
             </div>
-            <button id="generate" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors">
-                Generate Test Cases
-            </button>
+            
+            <div class="mb-6">
+                <label for="framework" class="block text-gray-700 text-sm font-bold mb-2">Select Testing Framework</label>
+                <select id="framework" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="robot">Robot Framework</option>
+                    <option value="pytest">Pytest</option>
+                    <option value="unittest">Unittest</option>
+                </select>
+            </div>
+
+            <div class="flex space-x-4">
+                <button id="generate" class="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors">
+                    Generate Test Cases
+                </button>
+                <button id="train" class="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
+                    Train Model
+                </button>
+            </div>
         </div>
 
         <div id="result" class="max-w-3xl mx-auto mt-8 hidden">
             <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4">Generated Test Case</h2>
-                <pre><code class="language-robot" id="testCase"></code></pre>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Generated Test Case</h2>
+                    <button id="copyCode" class="text-indigo-600 hover:text-indigo-800">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                        </svg>
+                    </button>
+                </div>
+                <pre><code class="language-python" id="testCase"></code></pre>
             </div>
             
             <div id="xpathGuide" class="bg-white rounded-lg shadow-lg p-6 hidden">
@@ -35,35 +57,107 @@
                 <pre><code class="language-markdown" id="xpathContent"></code></pre>
             </div>
         </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+            <div class="bg-white p-4 rounded-lg">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <p class="mt-2 text-center text-white">Processing...</p>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-python.min.js"></script>
     <script>
-        document.getElementById('generate').addEventListener('click', async () => {
+        const loading = document.getElementById('loading');
+        const generateBtn = document.getElementById('generate');
+        const trainBtn = document.getElementById('train');
+        const copyBtn = document.getElementById('copyCode');
+        const result = document.getElementById('result');
+        
+        async function generateTestCase() {
             const prompt = document.getElementById('prompt').value;
-            const response = await fetch('/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ prompt }),
-            });
+            const framework = document.getElementById('framework').value;
             
-            const data = await response.json();
-            
-            document.getElementById('testCase').textContent = data.test_case;
-            document.getElementById('result').classList.remove('hidden');
-            
-            if (data.xpath_guide) {
-                document.getElementById('xpathContent').textContent = data.xpath_guide;
-                document.getElementById('xpathGuide').classList.remove('hidden');
-            } else {
-                document.getElementById('xpathGuide').classList.add('hidden');
+            if (!prompt) {
+                alert('Please enter a test description');
+                return;
             }
             
-            Prism.highlightAll();
-        });
+            loading.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ prompt, framework }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('testCase').textContent = data.test_case;
+                    result.classList.remove('hidden');
+                    
+                    if (data.xpath_guide) {
+                        document.getElementById('xpathContent').textContent = data.xpath_guide;
+                        document.getElementById('xpathGuide').classList.remove('hidden');
+                    } else {
+                        document.getElementById('xpathGuide').classList.add('hidden');
+                    }
+                    
+                    Prism.highlightAll();
+                } else {
+                    alert(data.message || 'Failed to generate test case');
+                }
+            } catch (error) {
+                alert('An error occurred. Please try again.');
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+        
+        async function trainModel() {
+            if (!confirm('Training the model may take several minutes. Do you want to continue?')) {
+                return;
+            }
+            
+            loading.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/train', {
+                    method: 'POST',
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('Model training completed successfully!');
+                } else {
+                    alert(data.message || 'Failed to train model');
+                }
+            } catch (error) {
+                alert('An error occurred during model training');
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+        
+        function copyToClipboard() {
+            const code = document.getElementById('testCase').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('Test case copied to clipboard!');
+            }).catch(() => {
+                alert('Failed to copy test case');
+            });
+        }
+        
+        generateBtn.addEventListener('click', generateTestCase);
+        trainBtn.addEventListener('click', trainModel);
+        copyBtn.addEventListener('click', copyToClipboard);
     </script>
 </body>
 </html>

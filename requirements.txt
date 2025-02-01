@@ -4,3 +4,8 @@ robotframework-seleniumlibrary==6.2.0
 selenium==4.17.2
 python-dotenv==1.0.0
 gunicorn==21.2.0
+scikit-learn==1.4.0
+transformers==4.37.1
+torch==2.1.2
+nltk==3.8.1
+spacy==3.7.2
