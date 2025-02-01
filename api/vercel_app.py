@@ -1,10 +1,15 @@
 from flask import Flask, request, jsonify, send_from_directory
 import os
 import sys
+from dotenv import load_dotenv
+
+# Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Load environment variables
+load_dotenv()
+
 from test_generator.generator import TestCaseGenerator
-from test_generator.ml_trainer import TestCaseTrainer
 
 app = Flask(__name__)
 generator = TestCaseGenerator()
@@ -41,31 +46,10 @@ def generate():
             'message': 'Failed to generate test case. Please try again with a different prompt.'
         }), 400
 
-@app.route('/train', methods=['POST'])
-def train_model():
-    """Endpoint to trigger model training"""
-    try:
-        trainer = TestCaseTrainer()
-        trainer.train(num_epochs=5)
-        trainer.save_model(os.path.join(os.path.dirname(__file__), '../test_generator', 'trained_model'))
-        return jsonify({'message': 'Model training completed successfully'})
-    except Exception as e:
-        return jsonify({
-            'error': str(e),
-            'message': 'Failed to train model'
-        }), 400
-
 # Error handler for 404
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({'error': 'Not found'}), 404
 
 if __name__ == '__main__':
-    # Download spacy model if not already downloaded
-    import spacy.cli
-    try:
-        spacy.load('en_core_web_sm')
-    except OSError:
-        spacy.cli.download('en_core_web_sm')
-    
-    app.run()
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 3000)))
