@@ -1,0 +1,6 @@
+flask==3.0.3
+robotframework==7.0
+robotframework-seleniumlibrary==6.2.0
+selenium==4.17.2
+python-dotenv==1.0.0
+gunicorn==21.2.0
